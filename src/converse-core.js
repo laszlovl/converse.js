@@ -1644,6 +1644,7 @@
          */
         'send' (stanza) {
             _converse.connection.send(stanza);
+            _converse.emit('send', stanza);
         },
 
         /**

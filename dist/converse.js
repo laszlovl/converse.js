@@ -60007,20 +60007,18 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
            * https://xmpp.org/extensions/xep-0363.html#request
            */
           const file = this.get('file');
-          return new Promise((resolve, reject) => {
-            const iq = converse.env.$iq({
-              'from': _converse.jid,
-              'to': this.get('slot_request_url'),
-              'type': 'get'
-            }).c('request', {
-              'xmlns': Strophe.NS.HTTPUPLOAD,
-              'filename': file.name,
-              'size': file.size,
-              'content-type': file.type
-            });
-
-            _converse.connection.sendIQ(iq, resolve, reject);
+          const iq = converse.env.$iq({
+            'from': _converse.jid,
+            'to': this.get('slot_request_url'),
+            'type': 'get'
+          }).c('request', {
+            'xmlns': Strophe.NS.HTTPUPLOAD,
+            'filename': file.name,
+            'size': file.size,
+            'content-type': file.type
           });
+
+          _converse.api.sendIQ(iq);
         },
 
         getRequestSlotURL() {
@@ -60244,11 +60242,11 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
         },
 
         sendMessageStanza(stanza) {
-          _converse.connection.send(stanza);
+          _converse.api.send(stanza);
 
           if (_converse.forward_messages) {
             // Forward the message, so that other connected resources are also aware of it.
-            _converse.connection.send($msg({
+            _converse.api.send($msg({
               'to': _converse.bare_jid,
               'type': this.get('message_type')
             }).c('forwarded', {
@@ -60306,7 +60304,7 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
            * See XEP-0085 Chat State Notifications.
            */
           if (_converse.send_chat_state_notifications) {
-            _converse.connection.send($msg({
+            _converse.api.send($msg({
               'to': this.get('jid'),
               'type': 'chat'
             }).c(this.get('chat_state'), {
@@ -63535,7 +63533,7 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
 
       /* Send out a Chat Status Notification (XEP-0352) */
       // XXX if (converse.features[Strophe.NS.CSI] || true) {
-      _converse.connection.send($build(stat, {
+      _converse.api.send($build(stat, {
         xmlns: Strophe.NS.CSI
       }));
 
@@ -63643,7 +63641,7 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
         pres.c("status").t(message);
       }
 
-      _converse.connection.send(pres);
+      _converse.api.send(pres);
     };
 
     this.reconnect = _.debounce(function () {
@@ -64104,7 +64102,7 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
       },
 
       sendPresence(type, status_message) {
-        _converse.connection.send(this.constructPresence(type, status_message));
+        _converse.api.send(this.constructPresence(type, status_message));
       }
 
     });
@@ -64858,6 +64856,8 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
      */
     'send'(stanza) {
       _converse.connection.send(stanza);
+
+      _converse.emit('send', stanza);
     },
 
     /**
@@ -64870,6 +64870,8 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
     'sendIQ'(stanza) {
       return new Promise((resolve, reject) => {
         _converse.connection.sendIQ(stanza, resolve, reject, _converse.IQ_TIMEOUT);
+
+        _converse.emit('send', stanza);
       });
     }
 
@@ -65287,11 +65289,11 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
                 });
               });
             }
+
+            _converse.emit('streamFeaturesAdded');
           }
 
         });
-
-        _converse.emit('streamFeaturesAdded');
       }
 
       function initializeDisco() {
@@ -65386,7 +65388,7 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
           }).up();
         });
 
-        _converse.connection.send(iqresult.tree());
+        _converse.api.send(iqresult.tree());
 
         return true;
       }
@@ -65411,6 +65413,7 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
              * @method _converse.api.disco.stream.getFeature
              * @param {String} name The feature name
              * @param {String} xmlns The XML namespace
+             * @returns {Backbone.Model} Model representing the feature, if it exists.
              * @example _converse.api.disco.stream.getFeature('ver', 'urn:xmpp:features:rosterver')
              */
             'getFeature': function getFeature(name, xmlns) {
@@ -66633,7 +66636,7 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
       return true;
     }, Strophe.NS.MAM);
 
-    _converse.connection.sendIQ(stanza, function (iq) {
+    _converse.api.sendIQ(stanza).then(iq => {
       _converse.connection.deleteHandler(message_handler);
 
       if (_.isFunction(callback)) {
@@ -66650,13 +66653,13 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
 
         callback(messages, rsm);
       }
-    }, function () {
+    }).catch(iq => {
       _converse.connection.deleteHandler(message_handler);
 
       if (_.isFunction(errback)) {
         errback.apply(this, arguments);
       }
-    }, _converse.message_archiving_timeout);
+    });
   }
 
   converse.plugins.add('converse-mam', {
@@ -66930,16 +66933,14 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
             stanza.cnode(child).up();
           });
 
-          _converse.connection.sendIQ(stanza, _.partial(function (feature, iq) {
-            // XXX: Strictly speaking, the server should respond with the updated prefs
-            // (see example 18: https://xmpp.org/extensions/xep-0313.html#config)
-            // but Prosody doesn't do this, so we don't rely on it.
-            feature.save({
-              'preferences': {
-                'default': _converse.message_archiving
-              }
-            });
-          }, feature), _converse.onMAMError);
+          _converse.api.sendIQ(stanza).then(iq => // XXX: Strictly speaking, the server should respond with the updated prefs
+          // (see example 18: https://xmpp.org/extensions/xep-0313.html#config)
+          // but Prosody doesn't do this, so we don't rely on it.
+          feature.save({
+            'preferences': {
+              'default': _converse.message_archiving
+            }
+          })).catch(_converse.onMAMError);
         } else {
           feature.save({
             'preferences': {
@@ -66957,11 +66958,11 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
         if (feature.get('var') === Strophe.NS.MAM && prefs['default'] !== _converse.message_archiving && // eslint-disable-line dot-notation
         !_.isUndefined(_converse.message_archiving)) {
           // Ask the server for archiving preferences
-          _converse.connection.sendIQ($iq({
+          _converse.api.sendIQ($iq({
             'type': 'get'
           }).c('prefs', {
             'xmlns': Strophe.NS.MAM
-          }), _.partial(_converse.onMAMPreferences, feature), _.partial(_converse.onMAMError, feature));
+          })).then(_.partial(_converse.onMAMPreferences, feature)).catch(_.partial(_converse.onMAMError, feature));
         }
       });
 
@@ -68544,13 +68545,15 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
         updateRoomsList() {
           /* Send an IQ stanza to the server asking for all groupchats
            */
-          _converse.connection.sendIQ($iq({
+          const stanza = $iq({
             'to': this.model.get('muc_domain'),
             'from': _converse.connection.jid,
             'type': "get"
           }).c("query", {
             xmlns: Strophe.NS.DISCO_ITEMS
-          }), this.onRoomsFound.bind(this), this.informNoRoomsFound.bind(this), 5000);
+          });
+
+          _converse.api.sendIQ(stanza).then(iq => this.onRoomsFound(iq)).catch(iq => this.informNoRoomsFound(iq));
         },
 
         showRooms(ev) {
@@ -69027,7 +69030,7 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
             iq.c("reason", reason);
           }
 
-          return _converse.connection.sendIQ(iq, onSuccess, onError);
+          return _converse.api.sendIQ(iq).then(onSuccess).catch(onError);
         },
 
         verifyRoles(roles) {
@@ -69176,7 +69179,7 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
                 break;
               }
 
-              _converse.connection.send($pres({
+              _converse.api.send($pres({
                 from: _converse.connection.jid,
                 to: this.model.getRoomJIDAndNick(match[2]),
                 id: _converse.connection.getUniqueId()
@@ -69228,10 +69231,10 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
             case 'topic':
             case 'subject':
               // TODO: should be done via API call to _converse.api.rooms
-              _converse.connection.send($msg({
-                to: this.model.get('jid'),
-                from: _converse.connection.jid,
-                type: "groupchat"
+              _converse.api.send($msg({
+                'to': this.model.get('jid'),
+                'from': _converse.connection.jid,
+                'type': 'groupchat'
               }).c("subject", {
                 xmlns: "jabber:client"
               }).t(match[2] || "").tree());
@@ -70655,7 +70658,7 @@ function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
 
           this.save('connection_status', converse.ROOMSTATUS.CONNECTING);
 
-          _converse.connection.send(stanza);
+          _converse.api.send(stanza);
 
           return this;
         },
@@ -70837,7 +70840,7 @@ function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
             return;
           }
 
-          _converse.connection.send($msg({
+          _converse.api.send($msg({
             'to': this.get('jid'),
             'type': 'groupchat'
           }).c(chat_state, {
@@ -70892,7 +70895,7 @@ function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
             id: _converse.connection.getUniqueId()
           }).c('x', attrs);
 
-          _converse.connection.send(invitation);
+          _converse.api.send(invitation);
 
           _converse.emit('roomInviteSent', {
             'room': this,
@@ -71062,14 +71065,12 @@ function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
            * Returns a promise which resolves once the response IQ
            * has been received.
            */
-          return new Promise((resolve, reject) => {
-            _converse.connection.sendIQ($iq({
-              'to': this.get('jid'),
-              'type': "get"
-            }).c("query", {
-              xmlns: Strophe.NS.MUC_OWNER
-            }), resolve, reject);
-          });
+          return _converse.api.sendIQ($iq({
+            'to': this.get('jid'),
+            'type': "get"
+          }).c("query", {
+            xmlns: Strophe.NS.MUC_OWNER
+          }));
         },
 
         sendConfiguration(config, callback, errback) {
@@ -71102,7 +71103,7 @@ function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
 
           callback = _.isUndefined(callback) ? _.noop : _.partial(callback, iq.nodeTree);
           errback = _.isUndefined(errback) ? _.noop : _.partial(errback, iq.nodeTree);
-          return _converse.connection.sendIQ(iq, callback, errback);
+          return _converse.api.sendIQ(iq).then(callback).catch(errback);
         },
 
         saveAffiliationAndRole(pres) {
@@ -71142,24 +71143,22 @@ function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
            *  (Object) member: Map containing the member's jid and
            *      optionally a reason and affiliation.
            */
-          return new Promise((resolve, reject) => {
-            const iq = $iq({
-              to: this.get('jid'),
-              type: "set"
-            }).c("query", {
-              xmlns: Strophe.NS.MUC_ADMIN
-            }).c("item", {
-              'affiliation': member.affiliation || affiliation,
-              'nick': member.nick,
-              'jid': member.jid
-            });
-
-            if (!_.isUndefined(member.reason)) {
-              iq.c("reason", member.reason);
-            }
-
-            _converse.connection.sendIQ(iq, resolve, reject);
+          const iq = $iq({
+            to: this.get('jid'),
+            type: "set"
+          }).c("query", {
+            xmlns: Strophe.NS.MUC_ADMIN
+          }).c("item", {
+            'affiliation': member.affiliation || affiliation,
+            'nick': member.nick,
+            'jid': member.jid
           });
+
+          if (!_.isUndefined(member.reason)) {
+            iq.c("reason", member.reason);
+          }
+
+          return _converse.api.sendIQ(iq);
         },
 
         setAffiliations(members) {
@@ -74805,7 +74804,7 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
 
           _converse.connection._addSysHandler(this._onRegisterIQ.bind(this), null, "iq", null, null);
 
-          _converse.connection.send(iq);
+          _converse.api.send(iq);
 
           this.setFields(iq.tree());
         },
@@ -75553,7 +75552,7 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
             }).t(nick).up();
           }
 
-          _converse.connection.send(pres);
+          _converse.api.send(pres);
 
           this.save('ask', "subscribe"); // ask === 'subscribe' Means we have asked to subscribe to them.
 
@@ -75566,7 +75565,7 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
           * state notification by sending a presence stanza of type
           * "subscribe" to the contact
           */
-          _converse.connection.send($pres({
+          _converse.api.send($pres({
             'type': 'subscribe',
             'to': this.get('jid')
           }));
@@ -75581,7 +75580,7 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
           *  Parameters:
           *    (String) jid - The Jabber ID of the user who is unsubscribing
           */
-          _converse.connection.send($pres({
+          _converse.api.send($pres({
             'type': 'unsubscribe',
             'to': this.get('jid')
           }));
@@ -75614,7 +75613,7 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
             pres.c("status").t(message);
           }
 
-          _converse.connection.send(pres);
+          _converse.api.send(pres);
 
           return this;
         },
@@ -75633,7 +75632,7 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
             subscription: "remove"
           });
 
-          _converse.connection.sendIQ(iq, callback, errback);
+          _converse.api.sendIQ(iq).then(callback).catch(errback);
 
           return this;
         }
@@ -75781,7 +75780,7 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
             iq.c('group').t(group).up();
           });
 
-          _converse.connection.sendIQ(iq, callback, errback);
+          _converse.api.sendIQ(iq).then(callback).catch(errback);
         },
 
         addContactToRoster(jid, name, groups, attributes) {
@@ -75871,7 +75870,7 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
             return;
           }
 
-          _converse.connection.send($iq({
+          _converse.api.send($iq({
             type: 'result',
             id,
             from: _converse.connection.jid
@@ -75908,32 +75907,20 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
 
         fetchFromServer() {
           /* Fetch the roster from the XMPP server */
-          return new Promise((resolve, reject) => {
-            const iq = $iq({
-              'type': 'get',
-              'id': _converse.connection.getUniqueId('roster')
-            }).c('query', {
-              xmlns: Strophe.NS.ROSTER
-            });
-
-            if (this.rosterVersioningSupported()) {
-              iq.attrs({
-                'ver': this.data.get('version')
-              });
-            }
-
-            const callback = _.flow(this.onReceivedFromServer.bind(this), resolve);
-
-            const errback = function errback(iq) {
-              const errmsg = "Error while trying to fetch roster from the server";
-
-              _converse.log(errmsg, Strophe.LogLevel.ERROR);
-
-              reject(new Error(errmsg));
-            };
-
-            return _converse.connection.sendIQ(iq, callback, errback);
+          const iq = $iq({
+            'type': 'get',
+            'id': _converse.connection.getUniqueId('roster')
+          }).c('query', {
+            xmlns: Strophe.NS.ROSTER
           });
+
+          if (this.rosterVersioningSupported()) {
+            iq.attrs({
+              'ver': this.data.get('version')
+            });
+          }
+
+          return _converse.api.sendIQ(iq).then(iq => this.onReceivedFromServer(iq)).catch(iq => _converse.log("Error while trying to fetch roster from the server", Strophe.LogLevel.ERROR));
         },
 
         onReceivedFromServer(iq) {
@@ -77648,7 +77635,7 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
 
       });
 
-      function onVCardData(jid, iq, callback) {
+      async function onVCardData(jid, iq) {
         const vcard = iq.querySelector('vCard');
         let result = {};
 
@@ -77669,13 +77656,11 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
 
         if (result.image) {
           const buffer = u.base64ToArrayBuffer(result['image']);
-          crypto.subtle.digest('SHA-1', buffer).then(ab => {
-            result['image_hash'] = u.arrayBufferToHex(ab);
-            if (callback) callback(result);
-          });
-        } else {
-          if (callback) callback(result);
+          const ab = await crypto.subtle.digest('SHA-1', buffer);
+          result['image_hash'] = u.arrayBufferToHex(ab);
         }
+
+        return result;
       }
 
       function onVCardError(jid, iq, errback) {
@@ -77724,9 +77709,7 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
          *      is being requested.
          */
         const to = Strophe.getBareJidFromJid(jid) === _converse.bare_jid ? null : jid;
-        return new Promise((resolve, reject) => {
-          _converse.connection.sendIQ(createStanza("get", to), _.partial(onVCardData, jid, _, resolve), _.partial(onVCardError, jid, _, resolve), _converse.IQ_TIMEOUT);
-        });
+        return _converse.api.sendIQ(createStanza("get", to)).then(iq => onVCardData(jid, iq)).catch(iq => onVCardError(jid, iq));
       }
       /* Event handlers */
 

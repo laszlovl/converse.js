@@ -257,16 +257,16 @@
                         if (collection.length === 0 && _converse.connection.features) {
                             _.forEach(
                                 _converse.connection.features.childNodes,
-                                (feature) => {
+                                feature => {
                                     _converse.stream_features.create({
                                         'name': feature.nodeName,
                                         'xmlns': feature.getAttribute('xmlns')
                                     });
                                 });
                         }
+                        _converse.emit('streamFeaturesAdded');
                     }
                 });
-                _converse.emit('streamFeaturesAdded');
             }
 
             function initializeDisco () {
@@ -359,6 +359,7 @@
                          * @method _converse.api.disco.stream.getFeature
                          * @param {String} name The feature name
                          * @param {String} xmlns The XML namespace
+                         * @returns {Backbone.Model} Model representing the feature, if it exists.
                          * @example _converse.api.disco.stream.getFeature('ver', 'urn:xmpp:features:rosterver')
                          */
                         'getFeature': function (name, xmlns) {
