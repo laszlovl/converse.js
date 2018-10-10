@@ -331,7 +331,7 @@
                     const iq = $iq({type: 'set'})
                         .c('query', {xmlns: Strophe.NS.ROSTER})
                         .c('item', {jid: this.get('jid'), subscription: "remove"});
-                    _converse.connection.sendIQ(iq, callback, errback);
+                    _converse.api.sendIQ(iq).then(callback).catch(errback);
                     return this;
                 }
             });
@@ -468,7 +468,7 @@
                         .c('query', {xmlns: Strophe.NS.ROSTER})
                         .c('item', { jid, name });
                     _.each(groups, function (group) { iq.c('group').t(group).up(); });
-                    _converse.connection.sendIQ(iq, callback, errback);
+                    _converse.api.sendIQ(iq).then(callback).catch(errback);
                 },
 
                 addContactToRoster (jid, name, groups, attributes) {
@@ -574,22 +574,19 @@
 
                 fetchFromServer () {
                     /* Fetch the roster from the XMPP server */
-                    return new Promise((resolve, reject) => {
-                        const iq = $iq({
-                            'type': 'get',
-                            'id': _converse.connection.getUniqueId('roster')
-                        }).c('query', {xmlns: Strophe.NS.ROSTER});
-                        if (this.rosterVersioningSupported()) {
-                            iq.attrs({'ver': this.data.get('version')});
-                        }
-                        const callback = _.flow(this.onReceivedFromServer.bind(this), resolve);
-                        const errback = function (iq) {
-                            const errmsg = "Error while trying to fetch roster from the server";
-                            _converse.log(errmsg, Strophe.LogLevel.ERROR);
-                            reject(new Error(errmsg));
-                        }
-                        return _converse.connection.sendIQ(iq, callback, errback);
-                    });
+                    const iq = $iq({
+                        'type': 'get',
+                        'id': _converse.connection.getUniqueId('roster')
+                    }).c('query', {xmlns: Strophe.NS.ROSTER});
+                    if (this.rosterVersioningSupported()) {
+                        iq.attrs({'ver': this.data.get('version')});
+                    }
+                    return _converse.api.sendIQ(iq)
+                        .then(iq => this.onReceivedFromServer(iq))
+                        .catch(iq => _converse.log(
+                            "Error while trying to fetch roster from the server",
+                            Strophe.LogLevel.ERROR)
+                        );
                 },
 
                 onReceivedFromServer (iq) {

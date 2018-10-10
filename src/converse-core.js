@@ -1656,6 +1656,7 @@
         'sendIQ' (stanza) {
             return new Promise((resolve, reject) => {
                 _converse.connection.sendIQ(stanza, resolve, reject, _converse.IQ_TIMEOUT);
+                _converse.emit('send', stanza);
             });
         }
     };

@@ -138,19 +138,17 @@
                      * https://xmpp.org/extensions/xep-0363.html#request
                      */
                     const file = this.get('file');
-                    return new Promise((resolve, reject) => {
-                        const iq = converse.env.$iq({
-                            'from': _converse.jid,
-                            'to': this.get('slot_request_url'),
-                            'type': 'get'
-                        }).c('request', {
-                            'xmlns': Strophe.NS.HTTPUPLOAD,
-                            'filename': file.name,
-                            'size': file.size,
-                            'content-type': file.type
-                        })
-                        _converse.connection.sendIQ(iq, resolve, reject);
-                    });
+                    const iq = converse.env.$iq({
+                        'from': _converse.jid,
+                        'to': this.get('slot_request_url'),
+                        'type': 'get'
+                    }).c('request', {
+                        'xmlns': Strophe.NS.HTTPUPLOAD,
+                        'filename': file.name,
+                        'size': file.size,
+                        'content-type': file.type
+                    })
+                    _converse.api.sendIQ(iq);
                 },
 
                 getRequestSlotURL () {

@@ -101,9 +101,8 @@
             return true;
         }, Strophe.NS.MAM);
 
-        _converse.connection.sendIQ(
-            stanza,
-            function (iq) {
+        _converse.api.sendIQ(stanza)
+            .then(iq => {
                 _converse.connection.deleteHandler(message_handler);
                 if (_.isFunction(callback)) {
                     const set = iq.querySelector('set');
@@ -114,13 +113,10 @@
                     }
                     callback(messages, rsm);
                 }
-            },
-            function () {
+            }).catch(iq => {
                 _converse.connection.deleteHandler(message_handler);
                 if (_.isFunction(errback)) { errback.apply(this, arguments); }
-            },
-            _converse.message_archiving_timeout
-        );
+            });
     }
 
 
@@ -370,14 +366,13 @@
                     _.each(preference.children, function (child) {
                         stanza.cnode(child).up();
                     });
-                    _converse.connection.sendIQ(stanza, _.partial(function (feature, iq) {
+                    _converse.api.sendIQ(stanza)
+                        .then(iq =>
                             // XXX: Strictly speaking, the server should respond with the updated prefs
                             // (see example 18: https://xmpp.org/extensions/xep-0313.html#config)
                             // but Prosody doesn't do this, so we don't rely on it.
-                            feature.save({'preferences': {'default':_converse.message_archiving}});
-                        }, feature),
-                        _converse.onMAMError
-                    );
+                            feature.save({'preferences': {'default':_converse.message_archiving}}))
+                        .catch(_converse.onMAMError);
                 } else {
                     feature.save({'preferences': {'default':_converse.message_archiving}});
                 }
@@ -390,11 +385,9 @@
                         prefs['default'] !== _converse.message_archiving && // eslint-disable-line dot-notation
                         !_.isUndefined(_converse.message_archiving) ) {
                     // Ask the server for archiving preferences
-                    _converse.connection.sendIQ(
-                        $iq({'type': 'get'}).c('prefs', {'xmlns': Strophe.NS.MAM}),
-                        _.partial(_converse.onMAMPreferences, feature),
-                        _.partial(_converse.onMAMError, feature)
-                    );
+                    _converse.api.sendIQ($iq({'type': 'get'}).c('prefs', {'xmlns': Strophe.NS.MAM}))
+                        .then(_.partial(_converse.onMAMPreferences, feature))
+                        .catch(_.partial(_converse.onMAMError, feature));
                 }
             });
 

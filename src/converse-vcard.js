@@ -56,7 +56,7 @@
             });
 
 
-            function onVCardData (jid, iq, callback) {
+            async function onVCardData (jid, iq) {
                 const vcard = iq.querySelector('vCard');
                 let result = {};
                 if (!_.isNull(vcard)) {
@@ -75,14 +75,10 @@
                 }
                 if (result.image) {
                     const buffer = u.base64ToArrayBuffer(result['image']);
-                    crypto.subtle.digest('SHA-1', buffer)
-                    .then(ab => {
-                        result['image_hash'] = u.arrayBufferToHex(ab);
-                        if (callback) callback(result);
-                    });
-                } else {
-                    if (callback) callback(result);
+                    const ab = await crypto.subtle.digest('SHA-1', buffer);
+                    result['image_hash'] = u.arrayBufferToHex(ab);
                 }
+                return result;
             }
 
             function onVCardError (jid, iq, errback) {
@@ -121,14 +117,9 @@
                  *      is being requested.
                  */
                 const to = Strophe.getBareJidFromJid(jid) === _converse.bare_jid ? null : jid;
-                return new Promise((resolve, reject) => {
-                    _converse.connection.sendIQ(
-                        createStanza("get", to),
-                        _.partial(onVCardData, jid, _, resolve),
-                        _.partial(onVCardError, jid, _, resolve),
-                        _converse.IQ_TIMEOUT
-                    );
-                });
+                return _converse.api.sendIQ(createStanza("get", to))
+                    .then(iq => onVCardData(jid, iq))
+                    .catch(iq => onVCardError(jid, iq))
             }
 
             /* Event handlers */
