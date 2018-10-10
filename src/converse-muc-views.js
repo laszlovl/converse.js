@@ -979,7 +979,7 @@
                             if (!this.verifyRoles(['visitor', 'participant', 'moderator'])) {
                                 break;
                             }
-                            _converse.connection.send($pres({
+                            _converse.api.send($pres({
                                 from: _converse.connection.jid,
                                 to: this.model.getRoomJIDAndNick(match[2]),
                                 id: _converse.connection.getUniqueId()
@@ -1029,11 +1029,11 @@
                         case 'topic':
                         case 'subject':
                             // TODO: should be done via API call to _converse.api.rooms
-                            _converse.connection.send(
+                            _converse.api.send(
                                 $msg({
-                                    to: this.model.get('jid'),
-                                    from: _converse.connection.jid,
-                                    type: "groupchat"
+                                    'to': this.model.get('jid'),
+                                    'from': _converse.connection.jid,
+                                    'type': 'groupchat'
                                 }).c("subject", {xmlns: "jabber:client"}).t(match[2] || "").tree()
                             );
                             break;

@@ -615,7 +615,7 @@
                         });
                     }
                     _converse.connection._addSysHandler(this._onRegisterIQ.bind(this), null, "iq", null, null);
-                    _converse.connection.send(iq);
+                    _converse.api.send(iq);
                     this.setFields(iq.tree());
                 },
 

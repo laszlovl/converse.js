@@ -270,7 +270,7 @@
                     if (nick) {
                         pres.c('nick', {'xmlns': Strophe.NS.NICK}).t(nick).up();
                     }
-                    _converse.connection.send(pres);
+                    _converse.api.send(pres);
                     this.save('ask', "subscribe"); // ask === 'subscribe' Means we have asked to subscribe to them.
                     return this;
                 },
@@ -281,7 +281,7 @@
                     * state notification by sending a presence stanza of type
                     * "subscribe" to the contact
                     */
-                    _converse.connection.send($pres({
+                    _converse.api.send($pres({
                         'type': 'subscribe',
                         'to': this.get('jid')
                     }));
@@ -296,7 +296,7 @@
                     *  Parameters:
                     *    (String) jid - The Jabber ID of the user who is unsubscribing
                     */
-                    _converse.connection.send($pres({'type': 'unsubscribe', 'to': this.get('jid')}));
+                    _converse.api.send($pres({'type': 'unsubscribe', 'to': this.get('jid')}));
                     this.removeFromRoster();
                     this.destroy();
                 },
@@ -319,7 +319,7 @@
                     if (message && message !== "") {
                         pres.c("status").t(message);
                     }
-                    _converse.connection.send(pres);
+                    _converse.api.send(pres);
                     return this;
                 },
 
@@ -548,7 +548,7 @@
                         // user's bare JID <user@domainpart>.
                         return;
                     }
-                    _converse.connection.send($iq({type: 'result', id, from: _converse.connection.jid}));
+                    _converse.api.send($iq({type: 'result', id, from: _converse.connection.jid}));
 
                     const query = sizzle(`query[xmlns="${Strophe.NS.ROSTER}"]`, iq).pop();
                     this.data.save('version', query.getAttribute('ver'));

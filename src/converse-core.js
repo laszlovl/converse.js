@@ -423,7 +423,7 @@
              */
             /* Send out a Chat Status Notification (XEP-0352) */
             // XXX if (converse.features[Strophe.NS.CSI] || true) {
-            _converse.connection.send($build(stat, {xmlns: Strophe.NS.CSI}));
+            _converse.api.send($build(stat, {xmlns: Strophe.NS.CSI}));
             _converse.inactive = (stat === _converse.INACTIVE) ? true : false;
         };
 
@@ -513,7 +513,7 @@
              */
             const pres = $pres({to: jid, type: "unsubscribed"});
             if (message && message !== "") { pres.c("status").t(message); }
-            _converse.connection.send(pres);
+            _converse.api.send(pres);
         };
 
         this.reconnect = _.debounce(function () {
@@ -917,7 +917,7 @@
             },
 
             sendPresence (type, status_message) {
-                _converse.connection.send(this.constructPresence(type, status_message));
+                _converse.api.send(this.constructPresence(type, status_message));
             }
         });
 

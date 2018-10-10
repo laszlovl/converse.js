@@ -334,7 +334,7 @@
                 _.each(plugin._features, (feature) => {
                     iqresult.c('feature', {'var': feature}).up();
                 });
-                _converse.connection.send(iqresult.tree());
+                _converse.api.send(iqresult.tree());
                 return true;
             }
 
