@@ -61716,13 +61716,7 @@ _converse_core__WEBPACK_IMPORTED_MODULE_2__["default"].plugins.add('converse-cha
         _converse.api.send(receipt_stanza);
       },
 
-      handleReceipt(stanza, from_jid, is_carbon, is_me) {
-        const requests_receipt = !_.isUndefined(sizzle(`request[xmlns="${Strophe.NS.RECEIPTS}"]`, stanza).pop());
-
-        if (requests_receipt && !is_carbon && !is_me) {
-          this.sendReceiptStanza(from_jid, stanza.getAttribute('id'));
-        }
-
+      handleReceipt(stanza) {
         const to_bare_jid = Strophe.getBareJidFromJid(stanza.getAttribute('to'));
 
         if (to_bare_jid === _converse.bare_jid) {
@@ -62257,8 +62251,13 @@ _converse_core__WEBPACK_IMPORTED_MODULE_2__["default"].plugins.add('converse-cha
           'fullname': _.get(_converse.api.contacts.get(contact_jid), 'attributes.fullname')
         },
               chatbox = this.getChatBox(contact_jid, chatbox_attrs, has_body);
+        const requests_receipt = !_.isUndefined(sizzle(`request[xmlns="${Strophe.NS.RECEIPTS}"]`, stanza).pop());
 
-        if (chatbox && !chatbox.handleMessageCorrection(stanza) && !chatbox.handleReceipt(stanza, from_jid, is_carbon, is_me) && !chatbox.handleChatMarker(stanza, from_jid, is_carbon)) {
+        if (requests_receipt && !is_carbon && !is_me) {
+          this.sendReceiptStanza(from_jid, stanza.getAttribute('id'));
+        }
+
+        if (chatbox && !chatbox.handleMessageCorrection(stanza) && !chatbox.handleReceipt(stanza) && !chatbox.handleChatMarker(stanza, from_jid, is_carbon)) {
           await chatbox.createMessage(stanza, original_stanza);
         }
 
@@ -67027,6 +67026,10 @@ _converse_core__WEBPACK_IMPORTED_MODULE_6__["default"].plugins.add('converse-muc
 
           if (is_csn && (attrs.is_delayed || own_message)) {
             // No need showing delayed or our own CSN messages
+            return;
+          }
+
+          if (this.handleReceipt(stanza)) {
             return;
           }
 

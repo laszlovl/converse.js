@@ -1015,6 +1015,11 @@ converse.plugins.add('converse-muc', {
                         // No need showing delayed or our own CSN messages
                         return;
                     }
+
+                    if (this.handleReceipt (stanza)) {
+                        return;
+                    }
+
                     const msg = await this.messages.create(attrs);
                     if (forwarded && msg && msg.get('sender')  === 'me') {
                         msg.save({'received': moment().format()});
