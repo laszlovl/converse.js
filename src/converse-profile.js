@@ -199,6 +199,9 @@ converse.plugins.add('converse-profile', {
         });
 
         _converse.ClientInfoModal = _converse.BootstrapModal.extend({
+            events: {
+                "click #clear-storage": "clearStorage"
+            },
 
             toHTML () {
                 return tpl_client_info_modal(
@@ -216,11 +219,18 @@ converse.plugins.add('converse-profile', {
                             'second_subtitle': __('%1$s Translate %2$s it into your own language',
                                 '<a target="_blank" rel="nofollow" href="https://hosted.weblate.org/projects/conversejs/#languages">',
                                 '</a>'
-                            )
+                            ),
+                            'label_clearstorage': __('Clear storage cache')
                         }
                     )
                 );
-            }
+            },
+
+            clearStorage (ev) {
+                _converse.logOut();
+                window.localStorage.clear();
+                window.sessionStorage.clear();
+            },
         });
 
         _converse.XMPPStatusView = _converse.VDOMViewWithAvatar.extend({
