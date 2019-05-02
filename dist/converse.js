@@ -57993,14 +57993,26 @@ _converse_headless_converse_core__WEBPACK_IMPORTED_MODULE_4__["default"].plugins
 
     });
     _converse.ClientInfoModal = _converse.BootstrapModal.extend({
+      events: {
+        "click #clear-storage": "clearStorage"
+      },
+
       toHTML() {
         return templates_client_info_modal_html__WEBPACK_IMPORTED_MODULE_6___default()(Object.assign(this.model.toJSON(), this.model.vcard.toJSON(), {
           '__': __,
           'modal_title': __('About'),
           'version_name': _converse.VERSION_NAME,
           'first_subtitle': __('%1$s Open Source %2$s XMPP chat client brought to you by %3$s Opkode %2$s', '<a target="_blank" rel="nofollow" href="https://conversejs.org">', '</a>', '<a target="_blank" rel="nofollow" href="https://opkode.com">'),
-          'second_subtitle': __('%1$s Translate %2$s it into your own language', '<a target="_blank" rel="nofollow" href="https://hosted.weblate.org/projects/conversejs/#languages">', '</a>')
+          'second_subtitle': __('%1$s Translate %2$s it into your own language', '<a target="_blank" rel="nofollow" href="https://hosted.weblate.org/projects/conversejs/#languages">', '</a>'),
+          'label_clearstorage': __('Clear storage cache')
         }));
+      },
+
+      clearStorage(ev) {
+        _converse.logOut();
+
+        window.localStorage.clear();
+        window.sessionStorage.clear();
       }
 
     });
@@ -94157,7 +94169,9 @@ __e(o.version_name) +
 ((__t = (o.first_subtitle)) == null ? '' : __t) +
 '</p>\n                    <p class="brand-subtitle">' +
 ((__t = (o.second_subtitle)) == null ? '' : __t) +
-'</p>\n                </div>\n            </div>\n        </div>\n    </div>\n</div>\n';
+'</p>\n                    <p>\n                        <button id="clear-storage" class="btn btn-sm btn-warning">\n                            <i class="fa fa-trash"></i> ' +
+__e(o.label_clearstorage) +
+'\n                        </button>\n                    </p>\n                </div>\n            </div>\n        </div>\n    </div>\n</div>\n';
 return __p
 };
 
