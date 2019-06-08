@@ -320,9 +320,21 @@ converse.plugins.add('converse-notification', {
         });
 
         _converse.api.listen.on('connected', async function () {
+            // only bother continuing if the server supports webpush
             if (!(await _converse.api.disco.supports(Strophe.NS.WEBPUSH, _converse.bare_jid))) {
                 return;
             }
+
+            // get the server's VAPID public key from disco
+            const fields = await _converse.api.disco.getFields(_converse.bare_jid);
+            var vapid_key = _.get(fields.findWhere({'var': "webpush#public-key"}), 'attributes.value');
+
+            // XXX: reattaching an existing BOSH session makes disco.getFields() empty?!
+            if (!vapid_key) {
+                vapid_key = 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEhxZpb8yIVc/2hNesGLGAxEakyYy0MqEetjgL7BIOm8ybhVKxapKqNXjXJ+NOO5/b0Z0UuBg/HynGnf0xKKNhBQ==';
+            }
+
+            const converted_vapid_key = urlBase64ToUint8Array(vapid_key);
 
             navigator.serviceWorker.register('./worker.js').then(function(registration) {
                 console.log('ServiceWorker registration successful with scope: ', registration.scope);
@@ -339,6 +351,7 @@ converse.plugins.add('converse-notification', {
                             }
 
                             return registration.pushManager.subscribe({
+                                applicationServerKey: converted_vapid_key,
                                 userVisibleOnly: true,
                             });
                         });
@@ -349,9 +362,26 @@ converse.plugins.add('converse-notification', {
                     }
             });
         });
+
+        _converse.api.listen.on('addClientFeatures', () => _converse.api.disco.own.features.add(Strophe.NS.WEBPUSH));
     }
 });
 
 function buf2hex(buffer) { // buffer is an ArrayBuffer
     return Array.prototype.map.call(new Uint8Array(buffer), x => ('00' + x.toString(16)).slice(-2)).join('');
+}
+
+function urlBase64ToUint8Array(base64String) {
+    var padding = '='.repeat((4 - base64String.length % 4) % 4);
+    var base64 = (base64String + padding)
+        .replace(/\-/g, '+')
+        .replace(/_/g, '/');
+
+    var rawData = window.atob(base64);
+    var outputArray = new Uint8Array(rawData.length);
+
+    for (var i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
 }
