@@ -8,13 +8,14 @@
 
 import converse from "@converse/headless/converse-core";
 
-const { Strophe, _, sizzle } = converse.env,
+const { Strophe, _, sizzle, $iq } = converse.env,
       u = converse.env.utils;
 
+Strophe.addNamespace('WEBPUSH', 'urn:xmpp:webpush:0');
 
 converse.plugins.add('converse-notification', {
 
-    dependencies: ["converse-chatboxes"],
+    dependencies: ["converse-chatboxes", "converse-disco"],
 
     initialize () {
         /* The initialize function gets called as soon as the plugin is
@@ -292,6 +293,21 @@ converse.plugins.add('converse-notification', {
             }
         };
 
+        _converse.sendWebPushCredentials = function(subscription) {
+            const iq = $iq({type: 'set'})
+                .c('enable', {xmlns: Strophe.NS.WEBPUSH})
+            ;
+
+            subscription.getKey('auth');
+            subscription.getKey('p256dh');
+
+            iq.c('endpoint').t(subscription.endpoint).up();
+            iq.c('auth').t(buf2hex(subscription.getKey('auth'))).up();
+            iq.c('p256dh').t(buf2hex(subscription.getKey('p256dh'))).up();
+
+            return _converse.api.sendIQ(iq);
+        };
+
         _converse.api.listen.on('pluginsInitialized', function () {
             // We only register event handlers after all plugins are
             // registered, because other plugins might override some of our
@@ -302,6 +318,40 @@ converse.plugins.add('converse-notification', {
             _converse.api.listen.on('feedback', _converse.handleFeedback);
             _converse.api.listen.on('connected', _converse.requestPermission);
         });
+
+        _converse.api.listen.on('connected', async function () {
+            if (!(await _converse.api.disco.supports(Strophe.NS.WEBPUSH, _converse.bare_jid))) {
+                return;
+            }
+
+            navigator.serviceWorker.register('./worker.js').then(function(registration) {
+                console.log('ServiceWorker registration successful with scope: ', registration.scope);
+            });
+
+            navigator.serviceWorker.ready
+                .then(function(registration) {
+                    return registration.pushManager.getSubscription()
+                        .then(async function(subscription) {
+                            if (subscription) {
+                                console.log("existing", subscription);
+                                _converse.sendWebPushCredentials(subscription);
+                                return;
+                            }
+
+                            return registration.pushManager.subscribe({
+                                userVisibleOnly: true,
+                            });
+                        });
+                }).then(function(subscription) {
+                    if (subscription) {
+                        console.log("new", subscription);
+                        _converse.sendWebPushCredentials(subscription);
+                    }
+            });
+        });
     }
 });
 
+function buf2hex(buffer) { // buffer is an ArrayBuffer
+    return Array.prototype.map.call(new Uint8Array(buffer), x => ('00' + x.toString(16)).slice(-2)).join('');
+}
