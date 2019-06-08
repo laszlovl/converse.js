@@ -9,15 +9,23 @@ self.addEventListener('activate', function(event) {
 self.addEventListener('push', function(event) {
     const payload = event.data ? event.data.json() : null;
 
-    // Keep the service worker alive until the notification is created.
+    // if converse is open, it'll create notifications automatically
     event.waitUntil(
-        self.registration.showNotification("Converse XMPP notification", {
-            body: "body",
-            tag: "tag",
-            requireInteraction: true,
-            data: {
-                a: "b"
+        self.clients.matchAll().then(function(clientList) {
+            if (!clientList.length) {
+                self.registration.showNotification("Converse XMPP notification", {
+                    body: "body",
+                    tag: "tag",
+                    requireInteraction: true,
+                    data: {
+                        a: "b"
+                    }
+                });
             }
         })
     );
+});
+
+self.addEventListener('notificationclick', function(event) {
+    return self.clients.openWindow('/');
 });
